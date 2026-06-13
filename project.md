@@ -1,7 +1,7 @@
 # Project: Sous
 
 ## Overview
-Voice cooking companion for two college students (you + sister) living in San Francisco. Sunday: Claude suggests beginner-friendly recipes (mix of Indian and new cuisines), you pick the week's meals, app generates a consolidated grocery list. Cooking time: phone browser stays open, mic is always on — ask any question mid-cook and it talks back. Ignores ambient noise; responds only when it sounds like a question directed at it.
+Voice cooking companion for two college students (you + sister) living in San Francisco. Sunday: app searches the web for real recipes, suggests ~30 options (mostly Indian so ingredients overlap), you pick the week's meals, generates a smart consolidated grocery list. Cooking time: phone browser stays open, mic is always on — ask any question mid-cook and it talks back.
 
 ## Users
 - 2 people: you + your sister
@@ -12,7 +12,8 @@ Voice cooking companion for two college students (you + sister) living in San Fr
 ## Tech Stack
 - **Next.js** (App Router) — web app, works in phone browser
 - **Web Speech API** — built into Chrome on phones; handles mic input (SpeechRecognition) and voice output (SpeechSynthesis). Free, no external dependency.
-- **Claude API** (`claude-sonnet-4-6`) — brain for recipe suggestions, grocery list generation, and cooking Q&A
+- **DeepSeek** (`deepseek-chat`) — brain for recipe suggestions, grocery list consolidation, and cooking Q&A. OpenAI-compatible API, very cheap.
+- **Firecrawl** — web search + full recipe page scraping
 - **localStorage** — persists the week's selected recipes and grocery list; no login, no database for MVP
 - **Tailwind CSS** — fast, mobile-first styling
 - **Vercel** — deployment
@@ -21,25 +22,43 @@ Voice cooking companion for two college students (you + sister) living in San Fr
 ```
 Phone Browser
   └── Always-on mic (Web Speech API, continuous mode)
-        └── Transcript chunks → Claude (with full recipe context)
-              └── Claude decides: respond or ignore
+        └── Transcript chunks → DeepSeek (with full recipe context)
+              └── DeepSeek decides: respond or ignore
                     └── Response spoken aloud (SpeechSynthesis)
 
 Pages:
-  /          → Sunday planning: recipe suggestions + selection
-  /groceries → Consolidated grocery list (print/share friendly)
-  /cook/[id] → Cooking mode for a specific recipe — always-on voice
+  /             → Recipe selection: ~30 options stream in, pick lunch + dinner for the week
+  /schedule     → Mon–Sun meal plan, tap any meal to open the recipe
+  /groceries    → Smart consolidated grocery list (DeepSeek merges duplicates, rounds to real amounts)
+  /cook/[id]    → Full recipe with ingredients scaled to 2 people (math done in code, not AI)
 ```
 
 ## Key Files
-_To be filled in as we build._
+- `app/api/recipes/route.ts` — streaming SSE endpoint, searches Firecrawl + extracts via DeepSeek
+- `app/api/groceries/route.ts` — POST, consolidates raw ingredient list via DeepSeek
+- `lib/scale.ts` — scales ingredient amounts from original servings → 2 people in code
+- `app/page.tsx` — recipe selection with EventSource streaming
+- `app/schedule/page.tsx` — weekly schedule Mon–Sun
+- `app/groceries/page.tsx` — grocery checklist
+- `app/cook/[id]/page.tsx` — recipe detail + (soon) voice cooking assistant
 
 ## How to Run
-_To be filled in as we build._
+```
+cd ~/projects/sous/main
+npm run dev
+# visit http://localhost:3000
+```
 
-## MVP Scope (Week 1)
-- [ ] Recipe suggestion screen (Claude picks 6, user selects)
-- [ ] Grocery list generation from selected recipes
-- [ ] Cooking mode: always-on mic, voice Q&A with Claude
-- [ ] State persisted in localStorage (no login needed)
+Requires `.env.local`:
+```
+DEEPSEEK_API_KEY=...
+FIRECRAWL_API_KEY=...
+```
+
+## MVP Scope
+- [x] Recipe selection: ~30 options stream in from web, mostly Indian
+- [x] Grocery list: smart consolidation, scaled to 2 people, rounded to real amounts
+- [x] Weekly schedule: Mon–Sun with lunch + dinner per day
+- [x] Recipe detail page with scaled ingredients
+- [ ] Cooking mode: always-on mic, voice Q&A with DeepSeek
 - [ ] Deployed on Vercel
